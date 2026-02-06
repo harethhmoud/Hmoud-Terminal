@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hmoud Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:wght@300;400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #0a0a0b;
+    --bg-secondary: #111113;
+    --bg-tertiary: #18181b;
+    --bg-card: #141416;
+    --border: #232328;
+    --border-hover: #3a3a42;
+    --text-primary: #e8e8ed;
+    --text-secondary: #8a8a96;
+    --text-muted: #56565f;
+    --accent-gold: #d4a843;
+    --accent-gold-dim: rgba(212, 168, 67, 0.15);
+    --gain: #2ecc71;
+    --gain-dim: rgba(46, 204, 113, 0.12);
+    --loss: #e74c3c;
+    --loss-dim: rgba(231, 76, 60, 0.12);
+    --ticker-bg: #0d0d0f;
+    --ticker-border: #1a1a1f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Instrument Sans', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar-brand .logo {
+    width: 10px;
+    height: 10px;
+    background: var(--accent-gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  .topbar-brand h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .topbar-meta {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .topbar-meta .live-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--gain);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-dot 2s ease-in-out infinite;
+    margin-right: 6px;
+  }
+
+  .topbar-meta .data-source {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .data-source.live-data {
+    background: var(--gain-dim);
+    color: var(--gain);
+  }
+
+  .data-source.sample-data {
+    background: var(--accent-gold-dim);
+    color: var(--accent-gold);
+    cursor: pointer;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── NEWS TICKER ── */
+  .ticker-wrap {
+    background: var(--ticker-bg);
+    border-bottom: 1px solid var(--ticker-border);
+    overflow: hidden;
+    position: relative;
+    height: 42px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ticker-label {
+    background: var(--accent-gold);
+    color: #0a0a0b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 0 20px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    z-index: 2;
+    position: relative;
+  }
+
+  .ticker-label::after {
+    content: '';
+    position: absolute;
+    right: -12px;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    background: linear-gradient(to right, var(--ticker-bg), transparent);
+    z-index: 1;
+  }
+
+  .ticker-track {
+    display: flex;
+    animation: ticker-scroll var(--ticker-speed, 60s) linear infinite;
+    will-change: transform;
+  }
+
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
+
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    padding: 0 32px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+    height: 42px;
+    border-right: 1px solid var(--ticker-border);
+  }
+
+  .ticker-item:hover {
+    color: var(--text-primary);
+  }
+
+  .ticker-item .ticker-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .ticker-tag.earnings { background: rgba(155, 89, 182, 0.2); color: #b57edc; }
+  .ticker-tag.market   { background: var(--accent-gold-dim); color: var(--accent-gold); }
+  .ticker-tag.tech     { background: rgba(52, 152, 219, 0.2); color: #5dade2; }
+  .ticker-tag.crypto   { background: rgba(243, 156, 18, 0.2); color: #f5b041; }
+  .ticker-tag.energy   { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+  .ticker-tag.fed      { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+
+  .ticker-item .headline-text {
+    font-family: 'Instrument Sans', sans-serif;
+  }
+
+  .ticker-item .ticker-source {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  @keyframes ticker-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    min-height: calc(100vh - 100px);
+  }
+
+  /* ── CENTER: CHART AREA ── */
+  .chart-area {
+    padding: 28px 32px;
+    border-right: 1px solid var(--border);
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .chart-stock-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .stock-selector {
+    position: relative;
+  }
+
+  .stock-selector select {
+    appearance: none;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 8px 40px 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .stock-selector select:hover,
+  .stock-selector select:focus {
+    border-color: var(--accent-gold);
+    outline: none;
+  }
+
+  .stock-selector::after {
+    content: '\u25BE';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 14px;
+  }
+
+  .stock-price-display {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stock-price-display .price {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .stock-price-display .change {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .change.up { color: var(--gain); }
+  .change.down { color: var(--loss); }
+
+  .time-ranges {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    padding: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .time-ranges button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .time-ranges button:hover {
+    color: var(--text-secondary);
+  }
+
+  .time-ranges button.active {
+    background: var(--accent-gold);
+    color: #0a0a0b;
+    font-weight: 700;
+  }
+
+  .chart-container {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 20px 16px;
+    height: 420px;
+    overflow: hidden;
+  }
+
+  .chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* ── SECONDARY METRICS ROW ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .metric-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  .metric-card .metric-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .metric-card .metric-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  /* ── SIDEBAR: PORTFOLIO ── */
+  .sidebar {
+    padding: 24px 20px;
+    background: var(--bg-secondary);
+    overflow-y: auto;
+    max-height: calc(100vh - 100px);
+  }
+
+  .sidebar-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .portfolio-summary {
+    margin-bottom: 28px;
+  }
+
+  .portfolio-total {
+    font-family: 'DM Serif Display', serif;
+    font-size: 34px;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .portfolio-change {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .holdings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+
+  .holding-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .holding-card:hover {
+    border-color: var(--accent-gold);
+    background: rgba(212, 168, 67, 0.04);
+  }
+
+  .holding-card.active {
+    border-color: var(--accent-gold);
+    background: var(--accent-gold-dim);
+  }
+
+  .holding-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bg-primary);
+  }
+
+  .holding-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .holding-info .symbol {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .holding-info .name {
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .holding-values {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .holding-values .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .holding-values .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .pct.up { color: var(--gain); }
+  .pct.down { color: var(--loss); }
+
+  /* ── BOTTOM TICKER (MARKET INDICES) ── */
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    height: 36px;
+    overflow-x: auto;
+  }
+
+  .index-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+    border-right: 1px solid var(--border);
+    height: 100%;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .index-item .idx-name {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .index-item .idx-val {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* ── SETUP OVERLAY ── */
+  .setup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .setup-overlay.visible {
+    opacity: 1;
+  }
+
+  .setup-overlay.hidden {
+    display: none;
+  }
+
+  .setup-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 40px 44px;
+    max-width: 500px;
+    width: 90%;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+  }
+
+  .setup-overlay.visible .setup-modal {
+    transform: translateY(0);
+  }
+
+  .setup-modal .modal-icon {
+    width: 18px;
+    height: 18px;
+    background: var(--accent-gold);
+    transform: rotate(45deg);
+    margin-bottom: 24px;
+  }
+
+  .setup-modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+
+  .setup-modal .modal-sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  .setup-step {
+    display: none;
+  }
+
+  .setup-step.active {
+    display: block;
+  }
+
+  .setup-steps-indicator {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .step-dot {
+    width: 32px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .step-dot.active {
+    background: var(--accent-gold);
+  }
+
+  .step-dot.done {
+    background: var(--gain);
+  }
+
+  .setup-instruction {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .setup-instruction .inst-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-gold);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .setup-instruction p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .setup-instruction code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent-gold);
+  }
+
+  .setup-instruction a {
+    color: var(--accent-gold);
+    text-decoration: none;
+  }
+
+  .setup-instruction a:hover {
+    text-decoration: underline;
+  }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent-gold);
+    color: #0a0a0b;
+  }
+
+  .btn-primary:hover {
+    background: #e0b44e;
+  }
+
+  .btn-primary:disabled {
+    background: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .setup-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    min-height: 16px;
+  }
+
+  .setup-status.error {
+    color: var(--loss);
+  }
+
+  .setup-status.success {
+    color: var(--gain);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-gold);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1024px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .chart-area { border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar { max-height: unset; }
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .metrics-row { grid-template-columns: 1fr; }
+    .chart-header { flex-direction: column; }
+    .chart-container { height: 300px; }
+  }
+
+  /* ── LOAD ANIMATION ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: fadeUp 0.5s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up:nth-child(1) { animation-delay: 0.05s; }
+  .fade-up:nth-child(2) { animation-delay: 0.1s; }
+  .fade-up:nth-child(3) { animation-delay: 0.15s; }
+  .fade-up:nth-child(4) { animation-delay: 0.2s; }
+</style>
+</head>
+<body>
+
+<!-- SETUP OVERLAY -->
+<div class="setup-overlay hidden" id="setupOverlay">
+  <div class="setup-modal">
+    <div class="modal-icon"></div>
+    <div class="setup-steps-indicator" id="stepsIndicator">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+    </div>
+
+    <!-- STEP 0: API Keys -->
+    <div class="setup-step active" id="step0">
+      <h2>Connect Your Brokerage</h2>
+      <p class="modal-sub">Link your Wealthsimple account via SnapTrade to see your real portfolio data.</p>
+      <div class="setup-instruction">
+        <div class="inst-num">Step 1</div>
+        <p>Sign up at <a href="https://app.snaptrade.com" target="_blank" rel="noopener">app.snaptrade.com</a> and generate a free API key from the dashboard.</p>
+      </div>
+      <div class="setup-instruction">
+        <div class="inst-num">Step 2</div>
+        <p>Copy your <code>Client ID</code> and <code>Consumer Key</code> into the <code>.env</code> file in the project root, then restart the server.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnCheckKeys">Check Connection</button>
+        <button class="btn btn-secondary" id="btnSkipSetup">Use Sample Data</button>
+      </div>
+      <div class="setup-status" id="step0Status"></div>
+    </div>
+
+    <!-- STEP 1: Register User -->
+    <div class="setup-step" id="step1">
+      <h2>Register Account</h2>
+      <p class="modal-sub">Create a secure SnapTrade user to link your brokerage credentials.</p>
+      <div class="setup-instruction">
+        <div class="inst-num">Automatic</div>
+        <p>A unique user ID will be generated and stored locally. Your credentials never leave your machine.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnRegister">Register</button>
+        <button class="btn btn-secondary" id="btnBackTo0">Back</button>
+      </div>
+      <div class="setup-status" id="step1Status"></div>
+    </div>
+
+    <!-- STEP 2: Connect Brokerage -->
+    <div class="setup-step" id="step2">
+      <h2>Link Wealthsimple</h2>
+      <p class="modal-sub">You'll be redirected to securely authorize access to your brokerage account.</p>
+      <div class="setup-instruction">
+        <div class="inst-num">Authorization</div>
+        <p>A secure portal will open where you log in to Wealthsimple. SnapTrade handles the connection — your password is never shared with this app.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnConnect">Open Connection Portal</button>
+        <button class="btn btn-secondary" id="btnCheckConnection">I've Connected</button>
+      </div>
+      <div class="setup-status" id="step2Status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="logo"></div>
+    <h1>Hmoud Terminal</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-meta">
+      <span id="dataSourceBadge"></span>
+      <span><span class="live-dot"></span>LIVE</span>
+      <span id="clock"></span>
+    </div>
+  </div>
+</header>
+
+<!-- NEWS TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-label">Breaking</div>
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="dashboard">
+  <main class="chart-area">
+    <div class="chart-header fade-up">
+      <div class="chart-stock-info">
+        <div class="stock-selector">
+          <select id="stockPicker"></select>
+        </div>
+        <div class="stock-price-display">
+          <div class="price" id="stockPrice">$0.00</div>
+          <div class="change up" id="stockChange">+0.00 (+0.00%)</div>
+        </div>
+      </div>
+      <div class="time-ranges" id="timeRanges">
+        <button data-range="1D">1D</button>
+        <button data-range="1W">1W</button>
+        <button data-range="1M" class="active">1M</button>
+        <button data-range="3M">3M</button>
+        <button data-range="1Y">1Y</button>
+        <button data-range="ALL">ALL</button>
+      </div>
+    </div>
+
+    <div class="chart-container fade-up" style="animation-delay: 0.1s;">
+      <canvas id="mainChart"></canvas>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric-card fade-up" style="animation-delay: 0.15s;">
+        <div class="metric-label">Day High</div>
+        <div class="metric-value" id="metricHigh">--</div>
+      </div>
+      <div class="metric-card fade-up" style="animation-delay: 0.2s;">
+        <div class="metric-label">Day Low</div>
+        <div class="metric-value" id="metricLow">--</div>
+      </div>
+      <div class="metric-card fade-up" style="animation-delay: 0.25s;">
+        <div class="metric-label">Volume</div>
+        <div class="metric-value" id="metricVol">--</div>
+      </div>
+      <div class="metric-card fade-up" style="animation-delay: 0.3s;">
+        <div class="metric-label">Mkt Cap</div>
+        <div class="metric-value" id="metricCap">--</div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="portfolio-summary fade-up">
+      <div class="sidebar-section-title">Portfolio Value</div>
+      <div class="portfolio-total" id="portfolioTotal">$0.00</div>
+      <div class="portfolio-change up" id="portfolioChange">+$0.00 today</div>
+    </div>
+
+    <div class="sidebar-section-title fade-up" style="animation-delay: 0.1s;">Holdings</div>
+    <div class="holdings-list" id="holdingsList"></div>
+  </aside>
+</div>
+
+<footer class="bottom-bar" id="bottomBar"></footer>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────────────────
+
+var isLiveData = false;
+var stocks = {};
+var currentSymbol = '';
+var currentRange = '1M';
+var mainChart = null;
+
+// ─── SAMPLE DATA (fallback) ────────────────────────────────────────────
+
+var sampleStocks = {
+  AAPL:  { name: 'Apple Inc.',           price: 237.42, change: +3.18,  pct: +1.36, shares: 45,  color: '#a3aaae', high: 239.10, low: 233.80, vol: '58.2M',  cap: '3.61T' },
+  NVDA:  { name: 'NVIDIA Corp.',         price: 894.52, change: +21.36, pct: +2.45, shares: 12,  color: '#76b900', high: 901.28, low: 870.00, vol: '42.8M',  cap: '2.21T' },
+  MSFT:  { name: 'Microsoft Corp.',      price: 468.35, change: -2.14,  pct: -0.46, shares: 20,  color: '#00a4ef', high: 472.50, low: 465.10, vol: '21.3M',  cap: '3.48T' },
+  TSLA:  { name: 'Tesla Inc.',           price: 342.18, change: +15.72, pct: +4.82, shares: 15,  color: '#cc0000', high: 348.90, low: 325.00, vol: '112.5M', cap: '1.09T' },
+  AMZN:  { name: 'Amazon.com Inc.',      price: 225.94, change: +1.87,  pct: +0.83, shares: 30,  color: '#ff9900', high: 227.20, low: 223.50, vol: '33.1M',  cap: '2.35T' },
+  GOOG:  { name: 'Alphabet Inc.',        price: 191.28, change: -0.96,  pct: -0.50, shares: 25,  color: '#4285f4', high: 193.40, low: 189.70, vol: '18.7M',  cap: '2.37T' },
+  META:  { name: 'Meta Platforms',       price: 612.77, change: +8.43,  pct: +1.40, shares: 10,  color: '#0668E1', high: 618.00, low: 602.30, vol: '15.2M',  cap: '1.55T' },
+  BTC:   { name: 'Bitcoin',              price: 97842,  change: +2410,  pct: +2.52, shares: 0.5, color: '#f7931a', high: 99100,  low: 94800,  vol: '38.1B',  cap: '1.92T' },
+};
+
+var newsItems = [
+  { tag: 'earnings', tagLabel: 'EARNINGS', headline: 'NVIDIA beats Q4 expectations with record data center revenue of $18.4B', url: 'https://www.reuters.com', source: 'Reuters' },
+  { tag: 'tech',     tagLabel: 'TECH',     headline: 'Apple announces new M4 Ultra chip for Mac Pro lineup, shares rally', url: 'https://www.bloomberg.com', source: 'Bloomberg' },
+  { tag: 'market',   tagLabel: 'MARKET',   headline: 'S&P 500 closes at new all-time high as tech sector leads broad gains', url: 'https://www.cnbc.com', source: 'CNBC' },
+  { tag: 'fed',      tagLabel: 'FED',      headline: 'Federal Reserve signals potential rate cut in March meeting minutes', url: 'https://www.wsj.com', source: 'WSJ' },
+  { tag: 'crypto',   tagLabel: 'CRYPTO',   headline: 'Bitcoin surges past $97K amid institutional ETF inflows reaching $2.1B weekly', url: 'https://www.coindesk.com', source: 'CoinDesk' },
+  { tag: 'earnings', tagLabel: 'EARNINGS', headline: 'Amazon Web Services revenue growth accelerates to 19% in latest quarter', url: 'https://www.ft.com', source: 'FT' },
+  { tag: 'tech',     tagLabel: 'TECH',     headline: 'Meta unveils next-gen AI assistant integrated across all platforms', url: 'https://www.theverge.com', source: 'The Verge' },
+  { tag: 'energy',   tagLabel: 'ENERGY',   headline: 'Tesla Megapack orders surge 340% as utility-scale storage demand booms', url: 'https://www.reuters.com', source: 'Reuters' },
+  { tag: 'market',   tagLabel: 'MARKET',   headline: 'Microsoft market cap briefly surpasses $3.5T on cloud momentum', url: 'https://www.bloomberg.com', source: 'Bloomberg' },
+  { tag: 'tech',     tagLabel: 'TECH',     headline: 'Alphabet DeepMind achieves breakthrough in protein structure prediction', url: 'https://www.nature.com', source: 'Nature' },
+  { tag: 'fed',      tagLabel: 'FED',      headline: 'Treasury yields drop to 3-month lows on softening employment data', url: 'https://www.wsj.com', source: 'WSJ' },
+  { tag: 'crypto',   tagLabel: 'CRYPTO',   headline: 'Ethereum layer-2 transactions hit record 15M daily as fees plummet', url: 'https://www.coindesk.com', source: 'CoinDesk' },
+];
+
+var indices = [
+  { name: 'S&P 500',  val: '5,942.47', chg: '+1.24%', up: true },
+  { name: 'NASDAQ',   val: '18,847.28', chg: '+1.67%', up: true },
+  { name: 'DOW',      val: '43,210.89', chg: '+0.38%', up: true },
+  { name: 'RUT 2K',   val: '2,284.35', chg: '-0.21%', up: false },
+  { name: 'VIX',      val: '14.82', chg: '-4.18%', up: false },
+  { name: 'BTC/USD',  val: '97,842', chg: '+2.52%', up: true },
+  { name: '10Y TSY',  val: '4.12%', chg: '-0.03', up: false },
+  { name: 'GOLD',     val: '2,078.40', chg: '+0.56%', up: true },
+  { name: 'OIL WTI',  val: '76.84', chg: '-1.12%', up: false },
+];
+
+// Symbol colors for live holdings (hashed by symbol string)
+var symbolColors = [
+  '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c',
+  '#3498db', '#9b59b6', '#e84393', '#00b894', '#6c5ce7',
+  '#fd79a8', '#0984e3', '#d4a843', '#a3aaae', '#76b900',
+];
+
+function colorForSymbol(sym) {
+  var hash = 0;
+  for (var i = 0; i < sym.length; i++) {
+    hash = sym.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return symbolColors[Math.abs(hash) % symbolColors.length];
+}
+
+// ─── API HELPERS ────────────────────────────────────────────────────────
+
+var API_BASE = window.location.origin;
+
+function apiFetch(path, opts) {
+  return fetch(API_BASE + path, opts)
+    .then(function(r) { return r.json(); });
+}
+
+// ─── SETUP WIZARD ───────────────────────────────────────────────────────
+
+var setupStep = 0;
+
+function showOverlay() {
+  var el = document.getElementById('setupOverlay');
+  el.classList.remove('hidden');
+  requestAnimationFrame(function() {
+    el.classList.add('visible');
+  });
+}
+
+function hideOverlay() {
+  var el = document.getElementById('setupOverlay');
+  el.classList.remove('visible');
+  setTimeout(function() { el.classList.add('hidden'); }, 300);
+}
+
+function goToStep(n) {
+  setupStep = n;
+  for (var i = 0; i < 3; i++) {
+    var step = document.getElementById('step' + i);
+    step.classList.toggle('active', i === n);
+  }
+  var dots = document.querySelectorAll('.step-dot');
+  for (var j = 0; j < dots.length; j++) {
+    dots[j].classList.remove('active', 'done');
+    if (j < n) dots[j].classList.add('done');
+    else if (j === n) dots[j].classList.add('active');
+  }
+}
+
+// Step 0: Check API keys
+document.getElementById('btnCheckKeys').addEventListener('click', function() {
+  var statusEl = document.getElementById('step0Status');
+  statusEl.textContent = '';
+  var sp = document.createElement('span');
+  sp.className = 'spinner';
+  statusEl.appendChild(sp);
+  statusEl.appendChild(document.createTextNode(' Checking...'));
+
+  apiFetch('/api/status').then(function(data) {
+    if (!data.configured) {
+      statusEl.textContent = 'API keys not found. Add them to .env and restart the server.';
+      statusEl.className = 'setup-status error';
+    } else if (data.connected) {
+      statusEl.textContent = 'Already connected! Loading your portfolio...';
+      statusEl.className = 'setup-status success';
+      setTimeout(function() { loadLiveData(); hideOverlay(); }, 1000);
+    } else if (data.registered) {
+      statusEl.textContent = 'API keys valid! User registered. Proceed to connect.';
+      statusEl.className = 'setup-status success';
+      setTimeout(function() { goToStep(2); }, 800);
+    } else {
+      statusEl.textContent = 'API keys valid! Proceed to register.';
+      statusEl.className = 'setup-status success';
+      setTimeout(function() { goToStep(1); }, 800);
+    }
+  }).catch(function() {
+    statusEl.textContent = 'Could not reach server. Is it running on localhost:3000?';
+    statusEl.className = 'setup-status error';
+  });
+});
+
+// Skip setup
+document.getElementById('btnSkipSetup').addEventListener('click', function() {
+  hideOverlay();
+  loadSampleData();
+});
+
+// Step 1: Register
+document.getElementById('btnRegister').addEventListener('click', function() {
+  var statusEl = document.getElementById('step1Status');
+  statusEl.textContent = '';
+  var sp = document.createElement('span');
+  sp.className = 'spinner';
+  statusEl.appendChild(sp);
+  statusEl.appendChild(document.createTextNode(' Registering...'));
+
+  apiFetch('/api/register', { method: 'POST' }).then(function(data) {
+    if (data.error) {
+      statusEl.textContent = 'Error: ' + data.error;
+      statusEl.className = 'setup-status error';
+    } else {
+      statusEl.textContent = data.alreadyRegistered
+        ? 'User already registered.'
+        : 'User registered successfully!';
+      statusEl.className = 'setup-status success';
+      setTimeout(function() { goToStep(2); }, 800);
+    }
+  }).catch(function() {
+    statusEl.textContent = 'Failed to register. Check server logs.';
+    statusEl.className = 'setup-status error';
+  });
+});
+
+document.getElementById('btnBackTo0').addEventListener('click', function() {
+  goToStep(0);
+});
+
+// Step 2: Connect brokerage
+document.getElementById('btnConnect').addEventListener('click', function() {
+  var statusEl = document.getElementById('step2Status');
+  statusEl.textContent = '';
+  var sp = document.createElement('span');
+  sp.className = 'spinner';
+  statusEl.appendChild(sp);
+  statusEl.appendChild(document.createTextNode(' Generating portal link...'));
+
+  apiFetch('/api/connect').then(function(data) {
+    if (data.error) {
+      statusEl.textContent = 'Error: ' + data.error;
+      statusEl.className = 'setup-status error';
+    } else {
+      statusEl.textContent = 'Portal opened in new tab. Complete the login there.';
+      statusEl.className = 'setup-status success';
+      window.open(data.redirectURI, '_blank');
+    }
+  }).catch(function() {
+    statusEl.textContent = 'Failed to generate portal link.';
+    statusEl.className = 'setup-status error';
+  });
+});
+
+// Check if connected after portal
+document.getElementById('btnCheckConnection').addEventListener('click', function() {
+  var statusEl = document.getElementById('step2Status');
+  statusEl.textContent = '';
+  var sp = document.createElement('span');
+  sp.className = 'spinner';
+  statusEl.appendChild(sp);
+  statusEl.appendChild(document.createTextNode(' Checking accounts...'));
+
+  apiFetch('/api/status').then(function(data) {
+    if (data.connected) {
+      statusEl.textContent = 'Connected! Loading your portfolio...';
+      statusEl.className = 'setup-status success';
+      setTimeout(function() { loadLiveData(); hideOverlay(); }, 1000);
+    } else {
+      statusEl.textContent = 'No accounts found yet. Complete the portal flow first.';
+      statusEl.className = 'setup-status error';
+    }
+  }).catch(function() {
+    statusEl.textContent = 'Could not reach server.';
+    statusEl.className = 'setup-status error';
+  });
+});
+
+// ─── DATA LOADING ───────────────────────────────────────────────────────
+
+function loadSampleData() {
+  isLiveData = false;
+  stocks = sampleStocks;
+  currentSymbol = Object.keys(stocks)[0];
+  updateDataSourceBadge();
+  buildStockPicker();
+  updateChart();
+  buildHoldings(currentSymbol);
+}
+
+function loadLiveData() {
+  isLiveData = true;
+  updateDataSourceBadge();
+
+  apiFetch('/api/holdings').then(function(accountHoldings) {
+    // accountHoldings is an array of accounts, each with positions & balances
+    stocks = {};
+
+    accountHoldings.forEach(function(account) {
+      var positions = account.positions || [];
+      var balances = account.balances || [];
+
+      // Compute total cash balance per account
+      balances.forEach(function(bal) {
+        if (bal.cash && bal.currency) {
+          var cashKey = 'CASH_' + (bal.currency.code || 'USD');
+          if (!stocks[cashKey]) {
+            stocks[cashKey] = {
+              name: (bal.currency.code || 'USD') + ' Cash',
+              price: bal.cash,
+              change: 0,
+              pct: 0,
+              shares: 1,
+              color: '#56565f',
+              high: '--', low: '--', vol: '--', cap: '--',
+              isCash: true,
+            };
+          }
+        }
+      });
+
+      positions.forEach(function(pos) {
+        var sym = (pos.symbol && pos.symbol.symbol) ? pos.symbol.symbol : null;
+        if (!sym) return;
+
+        var ticker = sym.symbol || sym;
+        var name = (pos.symbol && pos.symbol.description) ? pos.symbol.description : ticker;
+        var units = pos.units || 0;
+        var price = (pos.price != null) ? pos.price : 0;
+        var avgPrice = (pos.average_purchase_price != null) ? pos.average_purchase_price : price;
+        var openPnl = (pos.open_pnl != null) ? pos.open_pnl : 0;
+        var pctChange = avgPrice > 0 ? ((price - avgPrice) / avgPrice * 100) : 0;
+
+        if (stocks[ticker]) {
+          stocks[ticker].shares += units;
+        } else {
+          stocks[ticker] = {
+            name: name,
+            price: price,
+            change: price - avgPrice,
+            pct: pctChange,
+            shares: units,
+            color: colorForSymbol(ticker),
+            high: '--', low: '--', vol: '--', cap: '--',
+          };
+        }
+      });
+    });
+
+    // Remove cash entries if no positions
+    var keys = Object.keys(stocks);
+    if (keys.length === 0) {
+      loadSampleData();
+      return;
+    }
+
+    // Filter out cash positions for cleaner display
+    var nonCashKeys = keys.filter(function(k) { return !stocks[k].isCash; });
+    currentSymbol = nonCashKeys.length > 0 ? nonCashKeys[0] : keys[0];
+
+    buildStockPicker();
+    updateChart();
+    buildHoldings(currentSymbol);
+  }).catch(function(err) {
+    console.error('Failed to load live data:', err);
+    loadSampleData();
+  });
+}
+
+function updateDataSourceBadge() {
+  var badge = document.getElementById('dataSourceBadge');
+  badge.textContent = '';
+  var span = document.createElement('span');
+  span.className = 'data-source ' + (isLiveData ? 'live-data' : 'sample-data');
+  span.textContent = isLiveData ? 'LIVE DATA' : 'SAMPLE DATA';
+  if (!isLiveData) {
+    span.title = 'Click to connect your brokerage';
+    span.addEventListener('click', function() { showOverlay(); });
+  }
+  badge.appendChild(span);
+}
+
+// ─── CHART DATA GENERATOR ──────────────────────────────────────────────
+
+function generateChartData(basePrice, points, volatility) {
+  if (typeof volatility === 'undefined') volatility = 0.015;
+  var trend = 0.0003;
+  var data = [basePrice * (0.85 + Math.random() * 0.1)];
+  for (var i = 1; i < points; i++) {
+    var prev = data[i - 1];
+    var rng = (Math.random() - 0.48) * volatility * prev + trend * prev;
+    data.push(+(prev + rng).toFixed(2));
+  }
+  var last = data[data.length - 1];
+  var scale = basePrice / last;
+  return data.map(function(v) { return +(v * scale).toFixed(2); });
+}
+
+function getPointCount(range) {
+  var map = { '1D': 78, '1W': 390, '1M': 88, '3M': 132, '1Y': 252, 'ALL': 756 };
+  return map[range] || 88;
+}
+
+// ─── TICKER ─────────────────────────────────────────────────────────────
+
+function buildTicker() {
+  var track = document.getElementById('tickerTrack');
+  track.textContent = '';
+
+  function createItems(items) {
+    items.forEach(function(n) {
+      var a = document.createElement('a');
+      a.className = 'ticker-item';
+      a.href = n.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+
+      var tag = document.createElement('span');
+      tag.className = 'ticker-tag ' + n.tag;
+      tag.textContent = n.tagLabel;
+
+      var text = document.createElement('span');
+      text.className = 'headline-text';
+      text.textContent = n.headline;
+
+      var src = document.createElement('span');
+      src.className = 'ticker-source';
+      src.textContent = n.source;
+
+      a.appendChild(tag);
+      a.appendChild(text);
+      a.appendChild(src);
+      track.appendChild(a);
+    });
+  }
+
+  createItems(newsItems);
+  createItems(newsItems);
+
+  var speed = Math.max(40, newsItems.length * 5);
+  track.parentElement.style.setProperty('--ticker-speed', speed + 's');
+}
+
+// ─── BOTTOM BAR ─────────────────────────────────────────────────────────
+
+function buildBottomBar() {
+  var bar = document.getElementById('bottomBar');
+  bar.textContent = '';
+
+  indices.forEach(function(idx) {
+    var div = document.createElement('div');
+    div.className = 'index-item';
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'idx-name';
+    nameSpan.textContent = idx.name;
+
+    var valSpan = document.createElement('span');
+    valSpan.className = 'idx-val';
+    valSpan.textContent = idx.val;
+
+    var chgSpan = document.createElement('span');
+    chgSpan.className = 'idx-chg';
+    chgSpan.style.color = idx.up ? 'var(--gain)' : 'var(--loss)';
+    chgSpan.textContent = idx.chg;
+
+    div.appendChild(nameSpan);
+    div.appendChild(valSpan);
+    div.appendChild(chgSpan);
+    bar.appendChild(div);
+  });
+}
+
+// ─── HOLDINGS LIST ──────────────────────────────────────────────────────
+
+function buildHoldings(activeSymbol) {
+  var list = document.getElementById('holdingsList');
+  list.textContent = '';
+
+  var totalVal = 0;
+  var totalDayChange = 0;
+  var entries = Object.keys(stocks).map(function(sym) { return [sym, stocks[sym]]; });
+
+  entries.forEach(function(entry) {
+    totalVal += entry[1].price * entry[1].shares;
+    totalDayChange += entry[1].change * entry[1].shares;
+  });
+
+  document.getElementById('portfolioTotal').textContent = formatCurrency(totalVal);
+  var pEl = document.getElementById('portfolioChange');
+  var sign = totalDayChange >= 0 ? '+' : '';
+  pEl.textContent = sign + formatCurrency(Math.abs(totalDayChange)) + ' today';
+  pEl.className = 'portfolio-change ' + (totalDayChange >= 0 ? 'up' : 'down');
+  pEl.style.color = totalDayChange >= 0 ? 'var(--gain)' : 'var(--loss)';
+
+  entries.forEach(function(entry) {
+    var sym = entry[0];
+    var s = entry[1];
+    if (s.isCash) return; // skip cash positions in list
+    var val = s.price * s.shares;
+    var isUp = s.pct >= 0;
+
+    var card = document.createElement('div');
+    card.className = 'holding-card' + (sym === activeSymbol ? ' active' : '');
+    card.setAttribute('data-symbol', sym);
+
+    var icon = document.createElement('div');
+    icon.className = 'holding-icon';
+    icon.style.background = s.color;
+    icon.textContent = sym.slice(0, 2);
+
+    var info = document.createElement('div');
+    info.className = 'holding-info';
+    var symSpan = document.createElement('span');
+    symSpan.className = 'symbol';
+    symSpan.textContent = sym;
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = s.name;
+    info.appendChild(symSpan);
+    info.appendChild(nameSpan);
+
+    var values = document.createElement('div');
+    values.className = 'holding-values';
+    var valSpan = document.createElement('span');
+    valSpan.className = 'value';
+    valSpan.textContent = formatCurrency(val);
+    var pctSpan = document.createElement('span');
+    pctSpan.className = 'pct ' + (isUp ? 'up' : 'down');
+    pctSpan.textContent = (isUp ? '+' : '') + s.pct.toFixed(2) + '%';
+    values.appendChild(valSpan);
+    values.appendChild(pctSpan);
+
+    card.appendChild(icon);
+    card.appendChild(info);
+    card.appendChild(values);
+
+    card.addEventListener('click', function() {
+      document.getElementById('stockPicker').value = sym;
+      switchStock(sym);
+    });
+
+    list.appendChild(card);
+  });
+}
+
+// ─── CHART ──────────────────────────────────────────────────────────────
+
+function switchStock(symbol) {
+  currentSymbol = symbol;
+  updateChart();
+  buildHoldings(symbol);
+}
+
+function updateChart() {
+  var s = stocks[currentSymbol];
+  if (!s) return;
+
+  var points = getPointCount(currentRange);
+  var labels = [];
+  for (var i = 0; i < points; i++) labels.push('');
+  var vol = currentRange === '1D' ? 0.004 : currentRange === '1W' ? 0.008 : 0.015;
+  var data = generateChartData(s.price, points, vol);
+
+  var isLargePrice = s.price >= 1000;
+  document.getElementById('stockPrice').textContent = isLargePrice
+    ? '$' + s.price.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : '$' + Number(s.price).toFixed(2);
+
+  var chEl = document.getElementById('stockChange');
+  var isUp = s.change >= 0;
+  var chSign = isUp ? '+' : '';
+  chEl.textContent = chSign + Number(s.change).toFixed(2) + ' (' + chSign + Number(s.pct).toFixed(2) + '%)';
+  chEl.className = 'change ' + (isUp ? 'up' : 'down');
+
+  var highText = (typeof s.high === 'number') ? '$' + s.high.toFixed(2) : s.high;
+  var lowText = (typeof s.low === 'number') ? '$' + s.low.toFixed(2) : s.low;
+  document.getElementById('metricHigh').textContent = highText;
+  document.getElementById('metricLow').textContent = lowText;
+  document.getElementById('metricVol').textContent = s.vol || '--';
+  document.getElementById('metricCap').textContent = s.cap || '--';
+
+  var ctx = document.getElementById('mainChart').getContext('2d');
+  var gradient = ctx.createLinearGradient(0, 0, 0, 380);
+  if (isUp) {
+    gradient.addColorStop(0, 'rgba(46, 204, 113, 0.18)');
+    gradient.addColorStop(1, 'rgba(46, 204, 113, 0.0)');
+  } else {
+    gradient.addColorStop(0, 'rgba(231, 76, 60, 0.18)');
+    gradient.addColorStop(1, 'rgba(231, 76, 60, 0.0)');
+  }
+
+  var lineColor = isUp ? '#2ecc71' : '#e74c3c';
+
+  if (mainChart) {
+    mainChart.data.labels = labels;
+    mainChart.data.datasets[0].data = data;
+    mainChart.data.datasets[0].borderColor = lineColor;
+    mainChart.data.datasets[0].backgroundColor = gradient;
+    mainChart.update('none');
+  } else {
+    mainChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          borderColor: lineColor,
+          borderWidth: 2,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHitRadius: 10,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: lineColor,
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a1f',
+            titleColor: '#8a8a96',
+            bodyColor: '#e8e8ed',
+            borderColor: '#2a2a32',
+            borderWidth: 1,
+            titleFont: { family: 'JetBrains Mono', size: 10 },
+            bodyFont: { family: 'JetBrains Mono', size: 13, weight: '600' },
+            displayColors: false,
+            padding: 10,
+            callbacks: {
+              title: function() { return currentSymbol; },
+              label: function(context) {
+                var v = context.raw;
+                return v >= 1000 ? '$' + v.toLocaleString() : '$' + v.toFixed(2);
+              }
+            }
+          },
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            position: 'right',
+            grid: { color: 'rgba(255,255,255,0.03)', drawTicks: false },
+            border: { display: false },
+            ticks: {
+              font: { family: 'JetBrains Mono', size: 10 },
+              color: '#56565f',
+              padding: 12,
+              callback: function(v) {
+                return v >= 1000 ? '$' + (v/1000).toFixed(1) + 'K' : '$' + v.toFixed(0);
+              },
+              maxTicksLimit: 6,
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// ─── STOCK PICKER ───────────────────────────────────────────────────────
+
+function buildStockPicker() {
+  var sel = document.getElementById('stockPicker');
+  sel.textContent = '';
+  var keys = Object.keys(stocks).filter(function(k) { return !stocks[k].isCash; });
+  keys.forEach(function(sym) {
+    var opt = document.createElement('option');
+    opt.value = sym;
+    opt.textContent = sym;
+    sel.appendChild(opt);
+  });
+  if (keys.indexOf(currentSymbol) === -1 && keys.length > 0) {
+    currentSymbol = keys[0];
+  }
+  sel.value = currentSymbol;
+  sel.onchange = function() { switchStock(sel.value); };
+}
+
+// ─── TIME RANGE BUTTONS ────────────────────────────────────────────────
+
+document.getElementById('timeRanges').addEventListener('click', function(e) {
+  if (e.target.tagName !== 'BUTTON') return;
+  var buttons = document.querySelectorAll('.time-ranges button');
+  for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
+  e.target.classList.add('active');
+  currentRange = e.target.getAttribute('data-range');
+  updateChart();
+});
+
+// ─── CLOCK ──────────────────────────────────────────────────────────────
+
+function updateClock() {
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2, '0');
+  var m = String(now.getMinutes()).padStart(2, '0');
+  var s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = h + ':' + m + ':' + s + ' EST';
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────
+
+function formatCurrency(n) {
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + Number(n).toFixed(2);
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────
+
+buildTicker();
+buildBottomBar();
+updateClock();
+setInterval(updateClock, 1000);
+
+// Check if server is running and connected
+apiFetch('/api/status').then(function(data) {
+  if (data.connected) {
+    // Already connected, load live data directly
+    loadLiveData();
+  } else if (data.configured) {
+    // API keys present but not connected yet — show setup at step 1 or 2
+    showOverlay();
+    if (data.registered) {
+      goToStep(2);
+    } else {
+      goToStep(1);
+    }
+  } else {
+    // Server running but no API keys, or server not running — show setup
+    showOverlay();
+    goToStep(0);
+  }
+}).catch(function() {
+  // Server not running — load sample data, user can connect later
+  loadSampleData();
+});
+
+</script>
+</body>
+</html>
