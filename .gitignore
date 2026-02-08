@@ -1,4 +1,9 @@
 node_modules/
 .env
 user-data.json
+scraped-news.json
+scraper-state.json
 .claude/
+CLAUDE.md
+AGENTS.md
+.codex/

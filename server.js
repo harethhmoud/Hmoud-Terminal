@@ -261,6 +261,19 @@ app.post("/api/disconnect", async (_req, res) => {
   res.json({ disconnected: true });
 });
 
+// Get scraped news articles
+const NEWS_FILE = path.join(__dirname, "scraped-news.json");
+
+app.get("/api/news", (_req, res) => {
+  try {
+    if (fs.existsSync(NEWS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(NEWS_FILE, "utf8"));
+      return res.json(data.articles || []);
+    }
+  } catch (_) {}
+  res.json([]);
+});
+
 // Fallback: serve index.html
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));

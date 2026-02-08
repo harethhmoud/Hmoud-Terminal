@@ -1623,6 +1623,18 @@ buildBottomBar();
 updateClock();
 setInterval(updateClock, 1000);
 
+// Fetch real news from scraper and replace ticker
+function fetchNews() {
+  apiFetch('/api/news').then(function(articles) {
+    if (articles && articles.length > 0) {
+      newsItems = articles;
+      buildTicker();
+    }
+  }).catch(function() {});
+}
+fetchNews();
+setInterval(fetchNews, 2 * 60 * 1000);
+
 // Check if server is running and connected
 apiFetch('/api/status').then(function(data) {
   if (data.connected) {
