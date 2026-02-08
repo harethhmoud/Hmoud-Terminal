@@ -231,7 +231,7 @@ async function main() {
   console.log("[scraper] Launching browser (visible window)...");
 
   const browser = await chromium.launch({
-    headless: false,
+    headless: true,
   });
 
   console.log("[scraper] Browser launched. Starting scrape loop.");
